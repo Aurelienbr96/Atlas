@@ -3,25 +3,25 @@
 //
 
 #include "server.h"
-#include "iostream"
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+
 #include <arpa/inet.h>
-#include <unistd.h>
-#include <ranges>
+#include <netinet/in.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include "http/routes_registery.h"
+#include <ranges>
 
-#include "http/response.h"
-#include "http/request.h"
 #include "http/conn.h"
 #include "http/http_parser.h"
+#include "http/request.h"
+#include "http/response.h"
+#include "http/routes_registery.h"
+#include "iostream"
 
 using namespace std;
-
 
 static bool set_nonblocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
@@ -29,71 +29,60 @@ static bool set_nonblocking(int fd) {
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1;
 }
 
-
 Server::Server(int port, RouteRegistery& routeRegistery) {
-    this->port = port;
-    this->routeRegistery = routeRegistery;
+  this->port = port;
+  this->routeRegistery = routeRegistery;
 
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket < 0) {
-        perror("socket failed");
-    }
-    sockaddr_in serverAddress{};
-    EventLoop eventLoop;
-    this->eventLoop = eventLoop;
+  int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+  if (serverSocket < 0) {
+    perror("socket failed");
+  }
+  sockaddr_in serverAddress{};
+  EventLoop eventLoop;
+  this->eventLoop = eventLoop;
 
   // to prevent "address already in use"
 
-
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(port);
-    this->serverAddress = serverAddress;
-    this->serverSocket = serverSocket;
-    set_nonblocking(serverSocket);
-    cout << "Server listening on port:" << port << endl;
-
+  serverAddress.sin_family = AF_INET;
+  serverAddress.sin_addr.s_addr = INADDR_ANY;
+  serverAddress.sin_port = htons(port);
+  this->serverAddress = serverAddress;
+  this->serverSocket = serverSocket;
+  set_nonblocking(serverSocket);
+  cout << "Server listening on port:" << port << endl;
 }
 
-Server::~Server() {
-    close(this->serverSocket);
-}
-
+Server::~Server() { close(this->serverSocket); }
 
 void Server::run() {
-    int res = ::bind(this->serverSocket, reinterpret_cast<sockaddr *>(&serverAddress),sizeof(serverAddress));
+  int res = ::bind(this->serverSocket, reinterpret_cast<sockaddr*>(&serverAddress),
+                   sizeof(serverAddress));
 
-    eventLoop.addEvent({
-        static_cast<uintptr_t>(this->serverSocket),
-        EVFILT_READ,
-        EV_ADD | EV_ENABLE,
-        0,
-        0,
-        nullptr
-    });
+  eventLoop.addEvent(
+      {static_cast<uintptr_t>(this->serverSocket), EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr});
 
+  if (res < 0) {
+    perror("bind failed");
+  }
+  listen(serverSocket, SOMAXCONN);
 
-    if (res < 0) {
-        perror("bind failed");
+  std::vector<struct kevent> events(256);
+  std::unordered_map<int, Conn> conns;
+
+  while (true) {  // accept loop
+    // one parser per incoming request
+    // int clientSocket = ::accept(this->serverSocket, nullptr, nullptr);
+
+    int n = kevent(eventLoop.getKqFb(), nullptr, 0, events.data(), static_cast<int>(events.size()),
+                   nullptr);
+    cout << "number of events" << n << endl;
+    if (n == -1) {
+      if (errno == EINTR) continue;
+      std::cerr << "kevent(wait): " << std::strerror(errno) << "\n";
+      break;
     }
-    listen(serverSocket, SOMAXCONN);
-
-    std::vector<struct kevent> events(256);
-    std::unordered_map<int, Conn> conns;
-
-    while (true) { // accept loop
-        // one parser per incoming request
-        // int clientSocket = ::accept(this->serverSocket, nullptr, nullptr);
-
-        int n = kevent(eventLoop.getKqFb(), nullptr, 0, events.data(), static_cast<int>(events.size()), nullptr);
-        cout << "number of events" << n << endl;
-        if (n == -1) {
-            if (errno == EINTR) continue;
-            std::cerr << "kevent(wait): " << std::strerror(errno) << "\n";
-            break;
-        }
-        for (int i = 0; i < n; i++) {
-            const auto& ev = events[i];
+    for (int i = 0; i < n; i++) {
+      const auto& ev = events[i];
 
       if (ev.flags & EV_ERROR) {
         // EV_ERROR on returned events: ev.data contains errno.
@@ -110,14 +99,15 @@ void Server::run() {
 
       // Listener: accept as many as possible.
       if (fd == this->serverSocket && ev.filter == EVFILT_READ) {
-        // we take as much connection as possible and we crash the loop when accept does not have new client
+        // we take as much connection as possible and we crash the loop when accept does not have
+        // new client
         while (true) {
           sockaddr_in caddr{};
           socklen_t clen = sizeof(caddr);
           int clientFd = ::accept(this->serverSocket, reinterpret_cast<sockaddr*>(&caddr), &clen);
-            cout << "client fd : " << clientFd << endl;
+          cout << "client fd : " << clientFd << endl;
           if (clientFd == -1) {
-              cout << "breaking" << endl;
+            cout << "breaking" << endl;
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
             std::cerr << "accept: " << std::strerror(errno) << "\n";
             break;
@@ -130,22 +120,18 @@ void Server::run() {
           }
           HttpParser parser;
 
-          conns.emplace(clientFd, Conn{.fd = clientFd,.parser=parser, .out = {}});
+          conns.emplace(clientFd, Conn{.fd = clientFd, .parser = parser, .out = {}});
 
           // Read events: EV_CLEAR means "edge-ish": you must drain reads until EAGAIN.
-          eventLoop.addEvent({
-                             static_cast<uintptr_t>(clientFd),
-                             EVFILT_READ,
-                             EV_ADD | EV_ENABLE | EV_CLEAR,
-                             0,
-                             0,
-                             nullptr});
+          eventLoop.addEvent({static_cast<uintptr_t>(clientFd), EVFILT_READ,
+                              EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr});
 
           // Don't add WRITE yet; only when we have data to send.
 
           char ipbuf[INET_ADDRSTRLEN]{};
           inet_ntop(AF_INET, &caddr.sin_addr, ipbuf, sizeof(ipbuf));
-          std::cout << "Accepted fd=" << clientFd << " from " << ipbuf << ":" << ntohs(caddr.sin_port) << "\n";
+          std::cout << "Accepted fd=" << clientFd << " from " << ipbuf << ":"
+                    << ntohs(caddr.sin_port) << "\n";
         }
         continue;
       }
@@ -157,7 +143,7 @@ void Server::run() {
         continue;
       }
       Conn& c = it->second;
-          cout << "found event to read" << endl;
+      cout << "found event to read" << endl;
 
       // Peer closed? EV_EOF may appear on READ or WRITE filters.
       // Still attempt to drain reads (there may be remaining data) then close.
@@ -192,17 +178,12 @@ void Server::run() {
 
         // If we have data to send, enable WRITE interest.
         if (!c.out.empty()) {
-          eventLoop.addEvent({
-                             static_cast<uintptr_t>(fd),
-                             EVFILT_WRITE,
-                             EV_ADD | EV_ENABLE | EV_CLEAR,
-                             0,
-                             0,
-                             nullptr});
+          eventLoop.addEvent({static_cast<uintptr_t>(fd), EVFILT_WRITE,
+                              EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr});
         }
 
         if (saw_eof) {
-         //eventLoop.close_conn(kq, conns, fd);
+          // eventLoop.close_conn(kq, conns, fd);
         }
       } else if (ev.filter == EVFILT_WRITE) {
         while (!c.out.empty()) {
@@ -227,25 +208,23 @@ void Server::run() {
         }
 
         if (saw_eof) {
-          //close_conn(kq, conns, fd);
+          // close_conn(kq, conns, fd);
         }
       }
     }
-        }
+  }
 }
-
 
 void Server::handleRequest(Request& request, Response& res) {
-    string& s = request.getPath();
-    Handler* handler = this->routeRegistery.getHandler(s);
-    if (handler == nullptr) {
-        cout << "route not found" << endl;
-        return;
-    }
-    (*handler)(request, res);
-    cout << "route found" << endl;
+  string& s = request.getPath();
+  Handler* handler = this->routeRegistery.getHandler(s);
+
+  if (handler == nullptr) {
+    cout << "route not found" << endl;
+    return;
+  }
+  (*handler)(request, res);
+  cout << "route found" << endl;
 }
 
-int Server::getPort() const {
-    return this->port;
-}
+int Server::getPort() const { return this->port; }

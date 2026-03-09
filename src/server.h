@@ -4,31 +4,31 @@
 
 #ifndef SERVER_H
 #define SERVER_H
-#include <set>
 #include <netinet/in.h>
+
+#include <set>
 
 #include "event_loop.h"
 #include "http/request.h"
-#include "http/routes_registery.h"
 #include "http/response.h"
+#include "http/routes_registery.h"
 
 class Server {
-    int port;
-    int serverSocket;
-    sockaddr_in serverAddress;
-    EventLoop eventLoop;
+  int port;
+  int serverSocket;
+  sockaddr_in serverAddress;
+  EventLoop eventLoop;
 
-    std::set<int> connClients;
-    RouteRegistery routeRegistery;
+  std::set<int> connClients;
+  RouteRegistery routeRegistery;
 
-    void handleRequest(Request& request, Response& response);
-public:
-    explicit Server(int port, RouteRegistery& routeRegistery);
-    ~Server();
-    void run();
-    int getPort() const;
+  void handleRequest(Request& request, Response& response);
+
+ public:
+  explicit Server(int port, RouteRegistery& routeRegistery);
+  ~Server();
+  void run();
+  int getPort() const;
 };
 
-
-
-#endif //SERVER_H
+#endif  // SERVER_H

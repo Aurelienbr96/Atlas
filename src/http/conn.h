@@ -7,10 +7,9 @@
 #include "http_parser.h"
 
 struct Conn {
-    int fd;
-    HttpParser parser;
-    std::string out; // pending bytes to write
+  int fd;
+  HttpParser parser;
+  std::string out;  // pending bytes to write
 };
 
-
-#endif //CONN_H
+#endif  // CONN_H
