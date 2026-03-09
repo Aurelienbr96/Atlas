@@ -23,6 +23,9 @@ add_executable(web_server main.cpp
         src/http/response.h
         src/http/routes_registery.cpp
         src/http/routes_registery.h
+        src/event_loop.cpp
+        src/event_loop.h
+        src/http/conn.h
 )
 
 add_executable(web_server_tests

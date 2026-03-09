@@ -6,7 +6,7 @@
 
 
 void RouteRegistery::addHandler(const string& method, Handler handler) {
-    routes[method] = std::move(handler);
+    routes[method] = handler;
 }
 
 Handler *RouteRegistery::getHandler(const string& method) {

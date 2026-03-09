@@ -55,6 +55,7 @@ static int make_listener(const std::string& ip, uint16_t port) {
   }
 
   int yes = 1;
+  // to prevent "address already in use"
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
     std::cerr << "setsockopt(SO_REUSEADDR): " << std::strerror(errno) << "\n";
     std::exit(1);
@@ -126,6 +127,7 @@ int main(int argc, char** argv) {
   std::cout << "Listening on " << ip << ":" << port << "\n";
 
   while (true) {
+    // we received N event ?
     int n = kevent(kq, nullptr, 0, events.data(), static_cast<int>(events.size()), nullptr);
     if (n == -1) {
       if (errno == EINTR) continue;
@@ -133,6 +135,7 @@ int main(int argc, char** argv) {
       break;
     }
 
+    // we map over our event
     for (int i = 0; i < n; i++) {
       const auto& ev = events[i];
 
@@ -151,6 +154,7 @@ int main(int argc, char** argv) {
 
       // Listener: accept as many as possible.
       if (fd == listener && ev.filter == EVFILT_READ) {
+        // we take as much connection as possible and we crash the loop when accept does not have new client
         while (true) {
           sockaddr_in caddr{};
           socklen_t clen = sizeof(caddr);

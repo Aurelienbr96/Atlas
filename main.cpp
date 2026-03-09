@@ -1,14 +1,15 @@
 #include "src/server.h"
 #include "iostream"
+#include "src/http/request.h"
+#include "src/http/response.h"
+#include "src/http/routes_registery.h"
+
 using namespace std;
 int main() {
     RouteRegistery router;
     router.addHandler("/users", [](const Request& req, Response& res) {
         cout << "user route" << endl;
         std::string response = "HTTP/1.1 200 OK\r\n\r\nHello";
-        res.end(response);
-        res.end(response);
-        res.end(response);
         res.end(response);
     });
 

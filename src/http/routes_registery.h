@@ -15,8 +15,6 @@ using namespace std;
 //using Handler = std::function<void(const Request&, Response&)>;
 
 class RouteRegistery {
-
-
     std::unordered_map<string, Handler> routes;
 public:
     void addHandler(const string& method, Handler);
