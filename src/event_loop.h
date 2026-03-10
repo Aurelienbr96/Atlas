@@ -4,7 +4,10 @@
 
 #ifndef EVENT_LOOP_H
 #define EVENT_LOOP_H
-#include <cstdint>
+
+#include <unordered_map>
+
+#include "functional"
 
 /*
  *
@@ -64,13 +67,24 @@ struct Event {
                 // Must be cast back to the correct type before use.
 };
 
+using Callback = std::function<void(struct kevent)>;
+
+struct Channel {
+  Callback read;
+  Callback write;
+};
+
 class EventLoop {
   int kq;
+  std::unordered_map<int, Channel> callbacks;
+  void handleEvent(const struct kevent& ev);
 
  public:
   EventLoop();
+  void start();
   int getKqFb() const;
   void addEvent(const Event& event) const;
+  void registerFd(int fd, Callback read, Callback write);
 };
 
 #endif  // EVENT_LOOP_H

@@ -19,8 +19,8 @@ class Server {
   sockaddr_in serverAddress;
   EventLoop eventLoop;
 
-  std::set<int> connClients;
   RouteRegistery routeRegistery;
+  std::unordered_map<int, Conn> conns;
 
   void handleRequest(Request& request, Response& response);
 
