@@ -27,8 +27,12 @@ int main() {
   router.addHandler("/upload",
                     [](const Request &req, Response &res) { cout << "upload route" << endl; });
 
-  Server server(8080, router);
+  EventLoop eventLoop;
+
+  Server server(8080, router, eventLoop);
+
   server.run();
+  eventLoop.start();
   cout << "listening on port " << server.getPort() << endl;
   return 0;
 }

@@ -17,15 +17,15 @@ class Server {
   int port;
   int serverSocket;
   sockaddr_in serverAddress;
-  EventLoop eventLoop;
+  EventLoop& eventLoop;
 
-  RouteRegistery routeRegistery;
+  RouteRegistery& routeRegistery;
   std::unordered_map<int, Conn> conns;
 
   void handleRequest(Request& request, Response& response);
 
  public:
-  explicit Server(int port, RouteRegistery& routeRegistery);
+  explicit Server(int port, RouteRegistery& routeRegistery, EventLoop& eventLoop);
   ~Server();
   void run();
   int getPort() const;

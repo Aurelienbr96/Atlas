@@ -29,17 +29,13 @@ static bool set_nonblocking(int fd) {
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1;
 }
 
-Server::Server(int port, RouteRegistery& routeRegistery) {
-  this->port = port;
-  this->routeRegistery = routeRegistery;
-
+Server::Server(int port, RouteRegistery& routeRegistery, EventLoop& eventLoop)
+    : port(port), eventLoop(eventLoop), routeRegistery(routeRegistery) {
   int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
   if (serverSocket < 0) {
     perror("socket failed");
   }
   sockaddr_in serverAddress{};
-  EventLoop eventLoop;
-  this->eventLoop = eventLoop;
 
   // to prevent "address already in use"
 
@@ -177,8 +173,6 @@ void Server::run() {
         }
       },
       [](struct kevent ev) {});
-
-  eventLoop.start();
 }
 
 void Server::handleRequest(Request& request, Response& res) {
