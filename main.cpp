@@ -1,3 +1,7 @@
+
+
+#include <nlohmann/json.hpp>
+
 #include "iostream"
 #include "src/http/request.h"
 #include "src/http/response.h"
@@ -9,10 +13,13 @@ int main() {
   EventLoop eventLoop;
 
   router.addHandler("/users", [](const Request &req, Response &res) {
-    std::string body = "Hello";
+    nlohmann::json body = {{"message", "Hello"}, {"status", "ok"}};
+
     res.setHttpStatus(HttpStatus::OK);
 
-    res.end(body);
+    std::string json = body.dump();
+
+    res.end(json);
   });
 
   router.addHandler("/upload",

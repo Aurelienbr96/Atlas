@@ -3,6 +3,8 @@ project(web_server)
 
 set(CMAKE_CXX_STANDARD 26)
 
+find_package(nlohmann_json CONFIG REQUIRED)
+
 include(FetchContent)
 FetchContent_Declare(
         googletest
@@ -41,9 +43,17 @@ add_executable(web_server_tests
         src/http/routes_registery.h
 )
 
+
+target_link_libraries(web_server
+        PRIVATE
+        nlohmann_json::nlohmann_json
+)
+
 target_link_libraries(web_server_tests
+        PRIVATE
         gtest
         gtest_main
+        nlohmann_json::nlohmann_json
 )
 
 enable_testing()
