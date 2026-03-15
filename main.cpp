@@ -4,30 +4,19 @@
 #include "src/http/routes_registery.h"
 #include "src/server.h"
 
-using namespace std;
 int main() {
   RouteRegistery router;
+  EventLoop eventLoop;
+
   router.addHandler("/users", [](const Request &req, Response &res) {
-    cout << "user route" << endl;
-
     std::string body = "Hello";
+    res.setHttpStatus(HttpStatus::OK);
 
-    std::string response =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Length: " +
-        std::to_string(body.size()) +
-        "\r\n"
-        "Connection: keep-alive\r\n"
-        "\r\n" +
-        body;
-
-    res.end(response);
+    res.end(body);
   });
 
   router.addHandler("/upload",
                     [](const Request &req, Response &res) { cout << "upload route" << endl; });
-
-  EventLoop eventLoop;
 
   Server server(8080, router, eventLoop);
 

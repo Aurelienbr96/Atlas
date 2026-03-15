@@ -26,6 +26,7 @@ add_executable(web_server main.cpp
         src/event_loop.cpp
         src/event_loop.h
         src/http/conn.h
+        src/http/http_status.h
 )
 
 add_executable(web_server_tests
