@@ -4,6 +4,7 @@
 
 #include "http_parser.h"
 
+#include "iostream"
 #include "ranges"
 
 optional<Request> HttpParser::constructRequest() {
@@ -31,20 +32,26 @@ void HttpParser::feed(const string& newContent) {
 
   if (header_end_index.has_value()) {  // parse headers
     string c = content.substr(0, header_end_index.value());
+
     for (const auto& part : std::views::split(c, std::string_view("\r\n"))) {
       if (status == Status::DidNotStart) {
         auto first_space = content.find(' ');
         auto second_space = content.find(' ', first_space + 1);
         string method = content.substr(0, first_space);
         string path = content.substr(first_space + 1, second_space - first_space - 1);
-        request.addPath(path);
+
+        request.setPath(path);
+        request.setMethod(method);
+
         status = Status::StartLineParsingDone;
         continue;
       }
+
       string line(part.begin(), part.end());
       int it = 0;
       string headerKey;
       string headerValue;
+
       for (const auto& p : views::split(line, string_view(":"))) {
         if (it == 0) {
           headerKey = string(p.begin(), p.end());
@@ -63,7 +70,8 @@ void HttpParser::feed(const string& newContent) {
     if (const auto len = request.getContentLength()) {
       if (content.size() - start_body >= static_cast<size_t>(*len)) {
         const string body = content.substr(start_body, *len);
-        request.addBody(body);
+
+        request.setBody(body);
         status = Status::BodyParsingDone;
       }
     }

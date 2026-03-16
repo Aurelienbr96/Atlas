@@ -12,49 +12,46 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-add_executable(web_server main.cpp
+enable_testing()
+
+# ---- Core library (all server code compiled once) ----
+add_library(web_server_lib
         src/server.cpp
-        src/server.h
         src/http/request.cpp
-        src/http/request.h
         src/utils/string_utils.cpp
-        src/utils/string_utils.h
         src/http/http_parser.cpp
-        src/http/http_parser.h
         src/http/response.cpp
-        src/http/response.h
         src/http/routes_registery.cpp
-        src/http/routes_registery.h
         src/event_loop.cpp
-        src/event_loop.h
-        src/http/conn.h
-        src/http/http_status.h
 )
 
-add_executable(web_server_tests
-        src/http/http_parser.cpp
-        src/http/http_parser.h
-        src/http/http_parser_test.cpp
-        src/http/request.cpp
-        src/http/request.h
-        src/http/response.cpp
-        src/http/response.h
-        src/http/routes_registery.cpp
-        src/http/routes_registery.h
+target_include_directories(web_server_lib PUBLIC src)
+
+target_link_libraries(web_server_lib
+        PUBLIC
+        nlohmann_json::nlohmann_json
 )
 
+# ---- Main server executable ----
+add_executable(web_server main.cpp)
 
 target_link_libraries(web_server
         PRIVATE
-        nlohmann_json::nlohmann_json
+        web_server_lib
+)
+
+# ---- Test executable ----
+add_executable(web_server_tests
+        src/http/http_parser_test.cpp
+        src/http/routes_registery_test.cpp
 )
 
 target_link_libraries(web_server_tests
         PRIVATE
-        gtest
-        gtest_main
-        nlohmann_json::nlohmann_json
+        web_server_lib
+        GTest::gtest
+        GTest::gtest_main
+        GTest::gmock
 )
 
-enable_testing()
 add_test(NAME AllTests COMMAND web_server_tests)

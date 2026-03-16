@@ -12,18 +12,15 @@ int main() {
   RouteRegistery router;
   EventLoop eventLoop;
 
-  router.addHandler("/users", [](const Request &req, Response &res) {
+  router.post("/users", [](const Request &req, Response &res) {
     nlohmann::json body = {{"message", "Hello"}, {"status", "ok"}};
 
     res.setHttpStatus(HttpStatus::OK);
 
-    std::string json = body.dump();
-
-    res.end(json);
+    res.end(body.dump());
   });
 
-  router.addHandler("/upload",
-                    [](const Request &req, Response &res) { cout << "upload route" << endl; });
+  router.post("/upload", [](const Request &req, Response &res) { cout << "upload route" << endl; });
 
   Server server(8080, router, eventLoop);
 

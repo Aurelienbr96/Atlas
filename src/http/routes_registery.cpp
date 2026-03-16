@@ -4,12 +4,24 @@
 
 #include "routes_registery.h"
 
-void RouteRegistery::addHandler(const string& method, Handler handler) { routes[method] = handler; }
+#include <utility>
 
-Handler* RouteRegistery::getHandler(const string& method) {
-  const auto it = this->routes.find(method);
-  if (it == routes.end()) {
+void RouteRegistery::get(const string& path, Handler handler) {
+  routes[path]["GET"] = std::move(handler);
+}
+
+void RouteRegistery::post(const string& path, Handler handler) {
+  routes[path]["POST"] = std::move(handler);
+}
+
+const Handler* RouteRegistery::getHandler(const string& path, const string& method) {
+  const auto path_it = this->routes.find(path);
+  if (path_it == routes.end()) {
     return nullptr;
   }
-  return &it->second;
+  const auto handler_it = path_it->second.find(method);
+  if (handler_it == path_it->second.end()) {
+    return nullptr;
+  }
+  return &handler_it->second;
 }

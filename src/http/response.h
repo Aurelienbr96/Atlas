@@ -18,8 +18,10 @@ class Response {
 
  public:
   explicit Response(int client_socket, EventLoop* eventLoop, Conn* conn);
+  Response() = default;
   void setHttpStatus(HttpStatusInfo code);
-  void end(std::string& msg);
+  void end();
+  void end(const std::string& msg);
 };
 
 #endif  // RESPONSE_H

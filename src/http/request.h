@@ -7,25 +7,25 @@
 #include <string>
 
 #include "map"
-using namespace std;
-
-enum class Method { GET, POST, PUT };
 
 class Request {
-  map<string, string> headers;
-  string body;
-  Method method;
-  string path;
+  std::map<std::string, std::string> headers;
+  std::string body;
+  std::string method;
+  std::string path;
 
  public:
-  Request(string body, Method method, string path);
+  Request(std::string body, std::string method, std::string path);
   Request() = default;
-  void addHeader(string header, string content);
-  void addPath(string path);
-  void addBody(const string& body);
+  void addHeader(std::string header, std::string content);
 
-  string& getPath();
-  optional<int> getContentLength();
+  void setBody(const std::string& body);
+  void setPath(std::string path);
+  void setMethod(std::string body);
+
+  std::string& getPath();
+  std::string& getMethod();
+  std::optional<int> getContentLength();
 };
 
 #endif  // REQUEST_H

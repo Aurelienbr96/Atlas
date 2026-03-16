@@ -13,10 +13,12 @@
 Response::Response(int client_socket, EventLoop* eventLoop, Conn* conn)
     : client_socket(client_socket), eventLoop(eventLoop), conn(conn) {}
 
-void Response::end(std::string& msg) {
-  std::string response = std::format(
-      "HTTP/1.1 {} {}\r\nContent-Length:{}\r\nConnection: keep-alive\r\n\r\n{}",
-      http_response_status.code, http_response_status.phrase, std::to_string(msg.size()), msg);
+void Response::end() { end(""); }
+
+void Response::end(const std::string& msg) {
+  std::string response =
+      std::format("HTTP/1.1 {} {}\r\nContent-Length:{}\r\nConnection: keep-alive\r\n\r\n{}",
+                  http_response_status.code, http_response_status.phrase, msg.size(), msg);
   this->conn->out.append(response);
 
   eventLoop->addEvent({static_cast<uintptr_t>(client_socket), EVFILT_WRITE,

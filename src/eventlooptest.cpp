@@ -33,7 +33,8 @@ static bool set_nonblocking(int fd) {
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1;
 }
 
-static void add_event(int kq, uintptr_t ident, int16_t filter, uint16_t flags, uint32_t fflags, intptr_t data, void* udata) {
+static void add_event(int kq, uintptr_t ident, int16_t filter, uint16_t flags, uint32_t fflags,
+                      intptr_t data, void* udata) {
   struct kevent kev;
   EV_SET(&kev, ident, filter, flags, fflags, data, udata);
   if (kevent(kq, &kev, 1, nullptr, 0, nullptr) == -1) {
@@ -44,7 +45,7 @@ static void add_event(int kq, uintptr_t ident, int16_t filter, uint16_t flags, u
 
 struct Conn {
   int fd;
-  std::string out; // pending bytes to write
+  std::string out;  // pending bytes to write
 };
 
 static int make_listener(const std::string& ip, uint16_t port) {
@@ -88,7 +89,8 @@ static int make_listener(const std::string& ip, uint16_t port) {
 }
 
 static void close_conn(int kq, std::unordered_map<int, Conn>& conns, int fd) {
-  // Remove filters (safe even if already gone; errors are handled by kernel as EV_ERROR on delete sometimes).
+  // Remove filters (safe even if already gone; errors are handled by kernel as EV_ERROR on delete
+  // sometimes).
   add_event(kq, static_cast<uintptr_t>(fd), EVFILT_READ, EV_DELETE, 0, 0, nullptr);
   add_event(kq, static_cast<uintptr_t>(fd), EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
   ::close(fd);
@@ -113,13 +115,7 @@ int main(int argc, char** argv) {
   }
 
   // Register listener readability (incoming accepts).
-  add_event(kq,
-            static_cast<uintptr_t>(listener),
-            EVFILT_READ,
-            EV_ADD | EV_ENABLE,
-            0,
-            0,
-            nullptr);
+  add_event(kq, static_cast<uintptr_t>(listener), EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr);
 
   std::unordered_map<int, Conn> conns;
   std::vector<struct kevent> events(256);
@@ -154,7 +150,8 @@ int main(int argc, char** argv) {
 
       // Listener: accept as many as possible.
       if (fd == listener && ev.filter == EVFILT_READ) {
-        // we take as much connection as possible and we crash the loop when accept does not have new client
+        // we take as much connection as possible and we crash the loop when accept does not have
+        // new client
         while (true) {
           sockaddr_in caddr{};
           socklen_t clen = sizeof(caddr);
@@ -174,19 +171,15 @@ int main(int argc, char** argv) {
           conns.emplace(cfd, Conn{.fd = cfd, .out = {}});
 
           // Read events: EV_CLEAR means "edge-ish": you must drain reads until EAGAIN.
-          add_event(kq,
-                    static_cast<uintptr_t>(cfd),
-                    EVFILT_READ,
-                    EV_ADD | EV_ENABLE | EV_CLEAR,
-                    0,
-                    0,
-                    nullptr);
+          add_event(kq, static_cast<uintptr_t>(cfd), EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0,
+                    0, nullptr);
 
           // Don't add WRITE yet; only when we have data to send.
 
           char ipbuf[INET_ADDRSTRLEN]{};
           inet_ntop(AF_INET, &caddr.sin_addr, ipbuf, sizeof(ipbuf));
-          std::cout << "Accepted fd=" << cfd << " from " << ipbuf << ":" << ntohs(caddr.sin_port) << "\n";
+          std::cout << "Accepted fd=" << cfd << " from " << ipbuf << ":" << ntohs(caddr.sin_port)
+                    << "\n";
         }
         continue;
       }
@@ -223,13 +216,8 @@ int main(int argc, char** argv) {
 
         // If we have data to send, enable WRITE interest.
         if (!c.out.empty()) {
-          add_event(kq,
-                    static_cast<uintptr_t>(fd),
-                    EVFILT_WRITE,
-                    EV_ADD | EV_ENABLE | EV_CLEAR,
-                    0,
-                    0,
-                    nullptr);
+          add_event(kq, static_cast<uintptr_t>(fd), EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0,
+                    0, nullptr);
         }
 
         if (saw_eof) {

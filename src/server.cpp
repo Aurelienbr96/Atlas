@@ -51,6 +51,11 @@ Server::Server(int port, RouteRegistery& routeRegistery, EventLoop& eventLoop)
 Server::~Server() { close(this->serverSocket); }
 
 void Server::run() {
+  int opt = 1;
+  if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+    perror("setsockopt SO_REUSEADDR failed");
+  }
+
   int res = ::bind(this->serverSocket, reinterpret_cast<sockaddr*>(&serverAddress),
                    sizeof(serverAddress));
 
@@ -147,10 +152,8 @@ void Server::run() {
                   return;
                 }
                 Conn& c = it->second;
-                cout << "found event to read" << endl;
+
                 while (!c.out.empty()) {
-                  cout << "writing" << endl;
-                  cout << "writing:" << c.out.data() << endl;
                   ssize_t w = ::write(clientFd, c.out.data(), c.out.size());
                   if (w > 0) {
                     c.out.erase(0, static_cast<size_t>(w));
@@ -176,11 +179,14 @@ void Server::run() {
 }
 
 void Server::handleRequest(Request& request, Response& res) {
-  string& s = request.getPath();
-  Handler* handler = this->routeRegistery.getHandler(s);
+  const string& path = request.getPath();
+  const string& method = request.getMethod();
+
+  const Handler* handler = this->routeRegistery.getHandler(path, method);
 
   if (handler == nullptr) {
-    cout << "route not found" << endl;
+    res.setHttpStatus(HttpStatus::NotFound);
+    res.end();
     return;
   }
   (*handler)(request, res);
