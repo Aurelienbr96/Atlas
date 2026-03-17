@@ -20,6 +20,9 @@ class HttpParser {
   int last_header_search = 0;
   [[nodiscard]] size_t getStartBody() const;
 
+  void resetState(size_t idx);
+  optional<size_t> getCurrentRequestSize();
+
  public:
   optional<Request> constructRequest();
   HttpParser() = default;

@@ -12,12 +12,35 @@ optional<Request> HttpParser::constructRequest() {
     return nullopt;
   }
 
-  return optional<Request>{std::move(this->request)};
+  auto idxOpt = getCurrentRequestSize();
+  if (!idxOpt) return nullopt;
+
+  size_t idx = *idxOpt;
+
+  auto result = std::optional<Request>{std::move(request)};
+  resetState(idx);
+  return result;
+}
+
+optional<size_t> HttpParser::getCurrentRequestSize() {
+  if (const auto contentLength = this->request.getContentLength()) {
+    return header_end_index.value() + 4 + contentLength.value();
+  }
+  return nullopt;
 }
 
 size_t HttpParser::getStartBody() const { return header_end_index.value() + 4; }
 
 Status HttpParser::getStatus() const { return this->status; }
+
+void HttpParser::resetState(size_t idx) {
+  status = Status::DidNotStart;
+  request = Request{};
+  content = content.erase(0, idx);
+  path.clear();
+  header_end_index.reset();
+  last_header_search = 0;
+}
 
 void HttpParser::feed(const string& newContent) {
   content.append(newContent);
@@ -67,9 +90,9 @@ void HttpParser::feed(const string& newContent) {
 
   if (header_end_index.has_value() && status == Status::HeaderParsingDone) {
     const size_t start_body = getStartBody();
-    if (const auto len = request.getContentLength()) {
-      if (content.size() - start_body >= static_cast<size_t>(*len)) {
-        const string body = content.substr(start_body, *len);
+    if (const auto contentLength = request.getContentLength()) {
+      if (content.size() - start_body >= static_cast<size_t>(*contentLength)) {
+        const string body = content.substr(start_body, *contentLength);
 
         request.setBody(body);
         status = Status::BodyParsingDone;
