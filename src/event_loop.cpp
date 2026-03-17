@@ -20,7 +20,7 @@ void EventLoop::addEvent(const Event& event) const {
   std::cout << "push event" << event.ident << std::endl;
   EV_SET(&kev, event.ident, event.filter, event.flags, event.fflags, event.data, event.udata);
   if (kevent(this->kq, &kev, 1, nullptr, 0, nullptr) == -1) {
-    std::cerr << "kevent(ADD/DEL) failed: " << std::strerror(errno) << "\n";
+    std::cerr << "kevent legacy(ADD/DEL) failed: " << std::strerror(errno) << "\n";
     std::exit(1);
   }
 };

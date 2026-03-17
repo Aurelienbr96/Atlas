@@ -2,6 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "event_loop/macos_event_loop.h"
 #include "iostream"
 #include "src/http/request.h"
 #include "src/http/response.h"
@@ -10,7 +11,7 @@
 
 int main() {
   RouteRegistery router;
-  EventLoop eventLoop;
+  MacOsEventLoop eventLoop;
 
   router.post("/users", [](const Request &req, Response &res) {
     nlohmann::json body = {{"message", "Hello"}, {"status", "ok"}};

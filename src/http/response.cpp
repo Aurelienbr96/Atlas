@@ -4,11 +4,9 @@
 
 #include "response.h"
 
-#include <sys/event.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
 #include <iostream>
+
+#include "event_loop/event_loop.h"
 
 Response::Response(int client_socket, EventLoop* eventLoop, Conn* conn)
     : client_socket(client_socket), eventLoop(eventLoop), conn(conn) {}
@@ -21,8 +19,7 @@ void Response::end(const std::string& msg) {
                   http_response_status.code, http_response_status.phrase, msg.size(), msg);
   this->conn->out.append(response);
 
-  eventLoop->addEvent({static_cast<uintptr_t>(client_socket), EVFILT_WRITE,
-                       EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr});
+  eventLoop->pushWriteEvent(client_socket);
 }
 
 void Response::setHttpStatus(HttpStatusInfo code) { http_response_status = code; }

@@ -24,6 +24,7 @@ add_library(web_server_lib
         src/http/response.cpp
         src/http/routes_registery.cpp
         src/event_loop.cpp
+        src/event_loop/macos_event_loop.cpp
 )
 
 target_include_directories(web_server_lib PUBLIC src)

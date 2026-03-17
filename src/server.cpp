@@ -64,8 +64,8 @@ void Server::run() {
   }
   listen(serverSocket, SOMAXCONN);
 
-  eventLoop.addEvent(
-      {static_cast<uintptr_t>(this->serverSocket), EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr});
+  eventLoop.pushReadEvent(serverSocket);
+
   eventLoop.registerFd(
       this->serverSocket,
       [this](struct kevent ev) {
@@ -91,8 +91,7 @@ void Server::run() {
           conns.emplace(clientFd, Conn{.fd = clientFd, .parser = parser, .out = {}});
 
           // Read events: EV_CLEAR means "edge-ish": you must drain reads until EAGAIN.
-          eventLoop.addEvent({static_cast<uintptr_t>(clientFd), EVFILT_READ,
-                              EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr});
+          eventLoop.pushReadEvent(clientFd);
 
           eventLoop.registerFd(
               clientFd,
@@ -135,8 +134,7 @@ void Server::run() {
 
                 // If we have data to send, enable WRITE interest.
                 if (!c.out.empty()) {
-                  eventLoop.addEvent({static_cast<uintptr_t>(clientFd), EVFILT_WRITE,
-                                      EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr});
+                  eventLoop.pushWriteEvent(clientFd);
                 }
 
                 if (saw_eof) {

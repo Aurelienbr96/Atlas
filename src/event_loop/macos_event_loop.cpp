@@ -17,20 +17,21 @@ MacOsEventLoop::MacOsEventLoop() {
 
 void MacOsEventLoop::pushReadEvent(int fd) {
   struct kevent kev;
-  EV_SET(&kev, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr);
+  EV_SET(&kev, static_cast<uintptr_t>(fd), EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr);
 
   if (kevent(this->kq, &kev, 1, nullptr, 0, nullptr) == -1) {
-    std::cerr << "kevent(ADD/DEL) failed: " << std::strerror(errno) << "\n";
+    std::cerr << "kevent read (ADD/DEL) failed: " << std::strerror(errno) << "\n";
     std::exit(1);
   }
 };
 
 void MacOsEventLoop::pushWriteEvent(int fd) {
   struct kevent kev;
-  EV_SET(&kev, fd, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr);
+  EV_SET(&kev, static_cast<uintptr_t>(fd), EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0,
+         nullptr);
 
   if (kevent(this->kq, &kev, 1, nullptr, 0, nullptr) == -1) {
-    std::cerr << "kevent(ADD/DEL) failed: " << std::strerror(errno) << "\n";
+    std::cerr << "kevent write (ADD/DEL) failed: " << std::strerror(errno) << "\n";
     std::exit(1);
   }
 };
