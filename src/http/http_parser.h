@@ -4,6 +4,8 @@
 
 #ifndef HTTP_PARSER_H
 #define HTTP_PARSER_H
+#include <optional>
+
 #include "request.h"
 #include "string"
 using namespace std;

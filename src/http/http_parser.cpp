@@ -4,6 +4,8 @@
 
 #include "http_parser.h"
 
+#include <optional>
+
 #include "iostream"
 #include "ranges"
 

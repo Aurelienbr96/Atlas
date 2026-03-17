@@ -4,6 +4,7 @@
 
 #ifndef REQUEST_H
 #define REQUEST_H
+#include <optional>
 #include <string>
 
 #include "map"

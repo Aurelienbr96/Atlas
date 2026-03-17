@@ -1,8 +1,8 @@
 //
-// Created by Aurélien Brachet on 27/02/2026.
+// Created by Aurélien Brachet on 17/03/2026.
 //
 
-#include "event_loop.h"
+#include "macos_event_loop.h"
 
 #include <sys/event.h>
 
@@ -10,27 +10,36 @@
 
 #include "vector"
 
-EventLoop::EventLoop() {
+MacOsEventLoop::MacOsEventLoop() {
   const int kq = kqueue();
   this->kq = kq;
 }
 
-void EventLoop::addEvent(const Event& event) const {
+void MacOsEventLoop::pushReadEvent(int fd) {
   struct kevent kev;
-  std::cout << "push event" << event.ident << std::endl;
-  EV_SET(&kev, event.ident, event.filter, event.flags, event.fflags, event.data, event.udata);
+  EV_SET(&kev, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr);
+
   if (kevent(this->kq, &kev, 1, nullptr, 0, nullptr) == -1) {
     std::cerr << "kevent(ADD/DEL) failed: " << std::strerror(errno) << "\n";
     std::exit(1);
   }
 };
 
-void EventLoop::start() {
+void MacOsEventLoop::pushWriteEvent(int fd) {
+  struct kevent kev;
+  EV_SET(&kev, fd, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr);
+
+  if (kevent(this->kq, &kev, 1, nullptr, 0, nullptr) == -1) {
+    std::cerr << "kevent(ADD/DEL) failed: " << std::strerror(errno) << "\n";
+    std::exit(1);
+  }
+};
+
+void MacOsEventLoop::start() {
   std::vector<struct kevent> events(256);
 
   while (true) {
-    int n = kevent(this->getKqFb(), nullptr, 0, events.data(), static_cast<int>(events.size()),
-                   nullptr);
+    int n = kevent(kq, nullptr, 0, events.data(), static_cast<int>(events.size()), nullptr);
     std::cout << "number of events" << n << std::endl;
     if (n == -1) {
       if (errno == EINTR) continue;
@@ -44,7 +53,7 @@ void EventLoop::start() {
   }
 }
 
-void EventLoop::handleEvent(const struct kevent& ev) {
+void MacOsEventLoop::handleEvent(const struct kevent& ev) {
   const int fd = static_cast<int>(ev.ident);
   const auto it = this->callbacks.find(fd);
   if (it == this->callbacks.end()) {
@@ -60,21 +69,6 @@ void EventLoop::handleEvent(const struct kevent& ev) {
   }
 }
 
-void EventLoop::registerFd(const int fd, Callback read, Callback write) {
+void MacOsEventLoop::registerFd(const int fd, Callback read, Callback write) {
   callbacks.insert_or_assign(fd, Channel{.read = read, .write = write});
 }
-
-int EventLoop::getKqFb() const { return this->kq; }
-
-/*
-* eventLoop.addEvent(
-      {static_cast<uintptr_t>(this->serverSocket), EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr});
-
-eventLoop.addEvent({static_cast<uintptr_t>(clientFd), EVFILT_READ,
-                              EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr});
- *
- *
-*    eventLoop.addEvent({static_cast<uintptr_t>(clientFd), EVFILT_WRITE,
-                                      EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, nullptr});
- *
- */
