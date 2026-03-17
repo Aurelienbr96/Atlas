@@ -7,7 +7,7 @@
 
 #include <functional>
 
-using Callback = std::function<void(struct kevent)>;
+using Callback = std::function<void()>;
 
 struct Channel {
   Callback read;

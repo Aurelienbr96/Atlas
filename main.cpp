@@ -2,7 +2,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "event_loop/macos_event_loop.h"
+#include "event_loop/event_loop_factory.h"
 #include "iostream"
 #include "src/http/request.h"
 #include "src/http/response.h"
@@ -11,7 +11,8 @@
 
 int main() {
   RouteRegistery router;
-  MacOsEventLoop eventLoop;
+
+ auto eventLoop =  EventLoopFactory::create();
 
   router.post("/users", [](const Request &req, Response &res) {
     nlohmann::json body = {{"message", "Hello"}, {"status", "ok"}};
@@ -26,7 +27,7 @@ int main() {
   Server server(8080, router, eventLoop);
 
   server.run();
-  eventLoop.start();
+  eventLoop->start();
   cout << "listening on port " << server.getPort() << endl;
   return 0;
 }

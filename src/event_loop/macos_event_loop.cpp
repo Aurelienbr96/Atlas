@@ -62,11 +62,11 @@ void MacOsEventLoop::handleEvent(const struct kevent& ev) {
     return;
   }
   if (ev.filter == EVFILT_READ) {
-    it->second.read(ev);
+    it->second.read();
     return;
   }
   if (ev.filter == EVFILT_WRITE) {
-    it->second.write(ev);
+    it->second.write();
   }
 }
 

@@ -23,15 +23,22 @@ add_library(web_server_lib
         src/http/http_parser.cpp
         src/http/response.cpp
         src/http/routes_registery.cpp
-        src/event_loop.cpp
-        src/event_loop/macos_event_loop.cpp
+        src/event_loop/event_loop_factory.cpp
 )
 
+if (APPLE)
+    add_library(event_loop src/event_loop/macos_event_loop.cpp)
+elseif (UNIX AND NOT APPLE)
+    add_library(event_loop src/event_loop/linux_event_loop.cpp)
+endif ()
+
+target_include_directories(event_loop PUBLIC src)
 target_include_directories(web_server_lib PUBLIC src)
 
 target_link_libraries(web_server_lib
         PUBLIC
         nlohmann_json::nlohmann_json
+        event_loop
 )
 
 # ---- Main server executable ----

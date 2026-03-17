@@ -5,13 +5,14 @@
 #include "server.h"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/in.h>
-#include <sys/event.h>
-#include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <cstring>
+#include <iostream>
 #include <ranges>
 
 #include "http/conn.h"
@@ -19,7 +20,6 @@
 #include "http/request.h"
 #include "http/response.h"
 #include "http/routes_registery.h"
-#include "iostream"
 
 using namespace std;
 
@@ -29,7 +29,7 @@ static bool set_nonblocking(int fd) {
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1;
 }
 
-Server::Server(int port, RouteRegistery& routeRegistery, EventLoop& eventLoop)
+Server::Server(int port, RouteRegistery& routeRegistery, EventLoop* eventLoop)
     : port(port), eventLoop(eventLoop), routeRegistery(routeRegistery) {
   int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
   if (serverSocket < 0) {
@@ -64,11 +64,11 @@ void Server::run() {
   }
   listen(serverSocket, SOMAXCONN);
 
-  eventLoop.pushReadEvent(serverSocket);
+  eventLoop->pushReadEvent(serverSocket);
 
-  eventLoop.registerFd(
+  eventLoop->registerFd(
       this->serverSocket,
-      [this](struct kevent ev) {
+      [this]() {
         while (true) {
           sockaddr_in caddr{};
           socklen_t clen = sizeof(caddr);
@@ -77,12 +77,12 @@ void Server::run() {
           if (clientFd == -1) {
             cout << "breaking" << endl;
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            std::cerr << "accept: " << std::strerror(errno) << "\n";
+            std::cerr << "accept failed: " << strerror(errno) << "\n";
             break;
           }
 
           if (!set_nonblocking(clientFd)) {
-            std::cerr << "set_nonblocking(client): " << std::strerror(errno) << "\n";
+            std::cerr << "accept failed: " << strerror(errno) << "\n";
             ::close(clientFd);
             continue;
           }
@@ -91,12 +91,12 @@ void Server::run() {
           conns.emplace(clientFd, Conn{.fd = clientFd, .parser = parser, .out = {}});
 
           // Read events: EV_CLEAR means "edge-ish": you must drain reads until EAGAIN.
-          eventLoop.pushReadEvent(clientFd);
+          eventLoop->pushReadEvent(clientFd);
 
-          eventLoop.registerFd(
+          eventLoop->registerFd(
               clientFd,
-              [this, clientFd](struct kevent ev) {
-                bool saw_eof = (ev.flags & EV_EOF) != 0;
+              [this, clientFd]() {
+                // bool saw_eof = (ev.flags & EV_EOF) != 0;
                 auto it = conns.find(clientFd);
                 if (it == conns.end()) {
                   cout << "could not find event" << endl;
@@ -116,33 +116,32 @@ void Server::run() {
                     if (auto rqt = c.parser.constructRequest()) {
                       Request request = std::move(*rqt);
                       cout << request.getContentLength().value() << endl;
-                      Response response(c.fd, &eventLoop, &c);
+                      Response response(c.fd, eventLoop, &c);
                       handleRequest(request, response);
                       break;
                     }
                   } else if (r == 0) {
                     // Clean shutdown by peer.
-                    saw_eof = true;
+                    // saw_eof = true;
                     break;
                   } else {
                     if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-                    std::cerr << "read fd=" << clientFd << ": " << std::strerror(errno) << "\n";
-                    saw_eof = true;
+                    std::cerr << "read fd=" << clientFd << strerror(errno) << "\n";
+                    // saw_eof = true;
                     break;
                   }
                 }
 
                 // If we have data to send, enable WRITE interest.
                 if (!c.out.empty()) {
-                  eventLoop.pushWriteEvent(clientFd);
+                  eventLoop->pushWriteEvent(clientFd);
                 }
 
-                if (saw_eof) {
-                  // eventLoop.close_conn(kq, conns, fd);
-                }
+                // if (saw_eof) {
+                //   // eventLoop.close_conn(kq, conns, fd);
+                // }
               },
-              [this, clientFd](struct kevent ev) {
-                cout << "write on client fd wtf" << ev.ident << endl;
+              [this, clientFd]() {
                 auto it = conns.find(clientFd);
                 if (it == conns.end()) {
                   cout << "could not find event" << endl;
@@ -173,7 +172,7 @@ void Server::run() {
                     << ntohs(caddr.sin_port) << "\n";
         }
       },
-      [](struct kevent ev) {});
+      []() {});
 }
 
 void Server::handleRequest(Request& request, Response& res) {
