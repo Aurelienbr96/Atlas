@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
     cmake \
@@ -16,4 +16,4 @@ RUN cmake -B build -S . \
 
 EXPOSE 8080
 
-CMD ["./build/server"]
+CMD ["./build/web_server"]

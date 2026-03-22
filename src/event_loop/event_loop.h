@@ -1,6 +1,3 @@
-//
-// Created by Aurélien Brachet on 17/03/2026.
-//
 
 #ifndef EVENT_LOOP_H
 #define EVENT_LOOP_H

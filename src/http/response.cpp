@@ -4,7 +4,7 @@
 
 #include "response.h"
 
-#include <iostream>
+#include <format>
 
 #include "event_loop/event_loop.h"
 
