@@ -19,6 +19,9 @@ class HttpParser {
   [[nodiscard]] size_t getStartBody() const;
 
   void parserHeader(size_t* idx, size_t* bodyStartIdx);
+  bool parseStartLine();
+  bool parseHeader();
+  bool parseBody();
   void resetState(size_t idx);
   optional<size_t> getCurrentRequestSize();
 

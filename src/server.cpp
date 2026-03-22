@@ -85,7 +85,6 @@ void Server::run() {
 
           conns.emplace(clientFd, Conn{.fd = clientFd, .parser = parser, .out = {}});
 
-          // Read events: EV_CLEAR means "edge-ish": you must drain reads until EAGAIN.
           eventLoop->pushReadEvent(clientFd);
 
           eventLoop->registerFd(

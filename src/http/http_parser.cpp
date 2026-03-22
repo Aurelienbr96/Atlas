@@ -5,6 +5,10 @@
 
 #include "http/request.h"
 
+int CRLF_SIZE = 2;
+std::string CRLF = "\r\n";
+std::string CRLF_2 = "\r\n\r\n";
+
 optional<Request> HttpParser::constructRequest() {
   if (status != Status::BodyParsingDone) {
     return nullopt;
@@ -51,41 +55,66 @@ void HttpParser::parserHeader(size_t* idx, size_t* bodyStartIdx) {
   *idx = content.find("\r\n", header_end_index.value());
   *bodyStartIdx = content.find("\r\n\r\n");
 }
-
-void HttpParser::feed(const string& c) {
-  content += c;
-  if (!header_end_index.has_value() && status == Status::DidNotStart) {
-    int idx = content.find("\r\n");
-
-    if (idx == std::string::npos) return;
-    auto methodIdx = content.find(" ");
-    auto protocolIdx = content.find(" ", methodIdx + 1);
-
-    auto method = content.substr(0, methodIdx);
-    auto path = content.substr(methodIdx + 1, protocolIdx - methodIdx - 1);
-    std::cout << "we are here" << std::endl;
-    status = Status::StartLineParsingDone;
-    header_end_index = idx + 2;
-    request.setMethod(method);
-    request.setPath(path);
+bool HttpParser::parseStartLine() {
+  if (header_end_index.has_value() && status != Status::DidNotStart) {
+    return true;
   }
+  int idx = content.find("\r\n");
 
-  if (status == Status::StartLineParsingDone) {
-    size_t idx = content.find("\r\n", header_end_index.value());
-    size_t bodyStartIdx = content.find("\r\n\r\n");
+  if (idx == std::string::npos) return false;
+  auto methodIdx = content.find(" ");
+  auto protocolIdx = content.find(" ", methodIdx + 1);
 
-    while (idx != std::string::npos) {
+  auto method = content.substr(0, methodIdx);
+  auto path = content.substr(methodIdx + 1, protocolIdx - methodIdx - 1);
+  std::cout << "we are here" << std::endl;
+  status = Status::StartLineParsingDone;
+  header_end_index = idx + CRLF_SIZE;
+  request.setMethod(method);
+  request.setPath(path);
+  return true;
+}
+bool HttpParser::parseHeader() {
+  if (status != Status::StartLineParsingDone) {
+    return true;
+  }
+  size_t idx = content.find(CRLF, header_end_index.value());
+  size_t bodyStartIdx = content.find(CRLF_2);
+
+  while (idx != std::string::npos) {
+    parserHeader(&idx, &bodyStartIdx);
+    if (idx == bodyStartIdx) {
       parserHeader(&idx, &bodyStartIdx);
-      if (idx == bodyStartIdx) {
-        parserHeader(&idx, &bodyStartIdx);
-        status = Status::HeaderParsingDone;
-        header_end_index = header_end_index.value() + 2;
-        break;
-      }
+      status = Status::HeaderParsingDone;
+      header_end_index = header_end_index.value() + CRLF_SIZE;
+      return true;
     }
   }
-  if (status == Status::HeaderParsingDone) {
-    request.setBody(content.substr(header_end_index.value(), request.getContentLength().value()));
-    status = Status::BodyParsingDone;
-  };
+  return false;
+}
+bool HttpParser::parseBody() {
+  if (status != Status::HeaderParsingDone) {
+    return false;
+  }
+  auto contentLength = request.getContentLength();
+  status = Status::BodyParsingDone;
+  if (!contentLength.has_value()) {
+    return true;
+  }
+
+  request.setBody(content.substr(header_end_index.value(), contentLength.value()));
+  return true;
+}
+void HttpParser::feed(const string& c) {
+  content += c;
+
+  if (!parseStartLine()) {
+    return;
+  }
+  if (!parseHeader()) {
+    return;
+  }
+  if (!parseBody()) {
+    return;
+  }
 }
