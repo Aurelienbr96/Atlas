@@ -1,13 +1,9 @@
-//
-// Created by Aurélien Brachet on 15/02/2026.
-//
-
 #include "http_parser.h"
 
+#include <iostream>
 #include <optional>
 
-#include "iostream"
-#include "ranges"
+#include "http/request.h"
 
 optional<Request> HttpParser::constructRequest() {
   if (status != Status::BodyParsingDone) {
@@ -31,6 +27,8 @@ optional<size_t> HttpParser::getCurrentRequestSize() {
   return nullopt;
 }
 
+Request* HttpParser::getRequest() { return &this->request; }
+
 size_t HttpParser::getStartBody() const { return header_end_index.value() + 4; }
 
 Status HttpParser::getStatus() const { return this->status; }
@@ -43,62 +41,51 @@ void HttpParser::resetState(size_t idx) {
   header_end_index.reset();
   last_header_search = 0;
 }
+void HttpParser::parserHeader(size_t* idx, size_t* bodyStartIdx) {
+  size_t middleIdx = content.find(":", header_end_index.value());
+  std::string headeKey =
+      content.substr(header_end_index.value(), middleIdx - header_end_index.value());
+  std::string headerValue = content.substr(middleIdx + 2, *idx - middleIdx - 2);
+  request.addHeader(headeKey, headerValue);
+  header_end_index = *idx + 2;
+  *idx = content.find("\r\n", header_end_index.value());
+  *bodyStartIdx = content.find("\r\n\r\n");
+}
 
-void HttpParser::feed(const string& newContent) {
-  content.append(newContent);
-  if (!header_end_index.has_value()) {
-    const size_t header_end = content.find("\r\n\r\n", last_header_search);
-    if (header_end != string::npos) {
-      header_end_index = header_end;
-    } else {
-      last_header_search = static_cast<int>(content.size() - 1);
-    }
+void HttpParser::feed(const string& c) {
+  content += c;
+  if (!header_end_index.has_value() && status == Status::DidNotStart) {
+    int idx = content.find("\r\n");
+
+    if (idx == std::string::npos) return;
+    auto methodIdx = content.find(" ");
+    auto protocolIdx = content.find(" ", methodIdx + 1);
+
+    auto method = content.substr(0, methodIdx);
+    auto path = content.substr(methodIdx + 1, protocolIdx - methodIdx - 1);
+    std::cout << "we are here" << std::endl;
+    status = Status::StartLineParsingDone;
+    header_end_index = idx + 2;
+    request.setMethod(method);
+    request.setPath(path);
   }
 
-  if (header_end_index.has_value()) {  // parse headers
-    string c = content.substr(0, header_end_index.value());
+  if (status == Status::StartLineParsingDone) {
+    size_t idx = content.find("\r\n", header_end_index.value());
+    size_t bodyStartIdx = content.find("\r\n\r\n");
 
-    for (const auto& part : std::views::split(c, std::string_view("\r\n"))) {
-      if (status == Status::DidNotStart) {
-        auto first_space = content.find(' ');
-        auto second_space = content.find(' ', first_space + 1);
-        string method = content.substr(0, first_space);
-        string path = content.substr(first_space + 1, second_space - first_space - 1);
-
-        request.setPath(path);
-        request.setMethod(method);
-
-        status = Status::StartLineParsingDone;
-        continue;
-      }
-
-      string line(part.begin(), part.end());
-      int it = 0;
-      string headerKey;
-      string headerValue;
-
-      for (const auto& p : views::split(line, string_view(":"))) {
-        if (it == 0) {
-          headerKey = string(p.begin(), p.end());
-          it++;
-          continue;
-        }
-        headerValue = string(p.begin(), p.end());
-      }
-      request.addHeader(headerKey, headerValue);
-      status = Status::HeaderParsingDone;
-    }
-  }
-
-  if (header_end_index.has_value() && status == Status::HeaderParsingDone) {
-    const size_t start_body = getStartBody();
-    if (const auto contentLength = request.getContentLength()) {
-      if (content.size() - start_body >= static_cast<size_t>(*contentLength)) {
-        const string body = content.substr(start_body, *contentLength);
-
-        request.setBody(body);
-        status = Status::BodyParsingDone;
+    while (idx != std::string::npos) {
+      parserHeader(&idx, &bodyStartIdx);
+      if (idx == bodyStartIdx) {
+        parserHeader(&idx, &bodyStartIdx);
+        status = Status::HeaderParsingDone;
+        header_end_index = header_end_index.value() + 2;
+        break;
       }
     }
   }
+  if (status == Status::HeaderParsingDone) {
+    request.setBody(content.substr(header_end_index.value(), request.getContentLength().value()));
+    status = Status::BodyParsingDone;
+  };
 }

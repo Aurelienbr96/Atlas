@@ -1,1 +1,13 @@
 vcpkg_installed/
+build/
+CMakeFiles/
+CMakeCache.txt
+_deps/
+vcpkg_installed/
+*.log
+compile_commands.json
+.cache/
+.idea/
+out/
+bin/
+

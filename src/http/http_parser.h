@@ -1,7 +1,3 @@
-//
-// Created by Aurélien Brachet on 15/02/2026.
-//
-
 #ifndef HTTP_PARSER_H
 #define HTTP_PARSER_H
 #include <optional>
@@ -22,11 +18,13 @@ class HttpParser {
   int last_header_search = 0;
   [[nodiscard]] size_t getStartBody() const;
 
+  void parserHeader(size_t* idx, size_t* bodyStartIdx);
   void resetState(size_t idx);
   optional<size_t> getCurrentRequestSize();
 
  public:
   optional<Request> constructRequest();
+  Request* getRequest();
   HttpParser() = default;
   [[nodiscard]] Status getStatus() const;
   void feed(const string& content);

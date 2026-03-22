@@ -1,7 +1,3 @@
-//
-// Created by Aurélien Brachet on 23/11/2025.
-//
-
 #include "server.h"
 
 #include <arpa/inet.h>
@@ -13,7 +9,6 @@
 
 #include <cstring>
 #include <iostream>
-#include <ranges>
 
 #include "http/conn.h"
 #include "http/http_parser.h"
